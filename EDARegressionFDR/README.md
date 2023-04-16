@@ -1,4 +1,4 @@
-# EDA Regression and FDR
+# EDA, Regression & FDR
 
  * Performs exploratory data analysis (EDA).
  * Runs linear regression to predict prices of automobiles based on specifications. 
