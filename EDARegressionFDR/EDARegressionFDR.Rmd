@@ -1,0 +1,149 @@
+---
+title: "EDA Regression & FDR"
+author: "Arpita Mangal"
+---
+
+
+#### Loading Packages
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(ggcorrplot)
+library(caTools)
+```
+
+#### Explore the dataset “autos.csv”.
+
+```{r}
+autos <- read.csv("autos.csv")
+autos_numeric = select_if(autos, is.numeric)
+autos_not_numeric = autos[,c('make','fuel_type','aspiration','num_of_doors','body_style','drive_wheels','engine_location','engine_type','fuel_system')]
+model.matrix(~0+., data=autos_numeric) %>%
+  cor(use="pairwise.complete.obs") %>%
+  ggcorrplot(show.diag = F, type="lower", lab=TRUE, lab_size=2)
+```
+
+The correlation plot tells us that horsepower, engine size, num_of_cylinders, curb_weight, width and length are directly correlated with price. We also observe that highway_mpg and city_mpg are negatively correlated with price. There is high correlation between independent variables as well. Length, wheel_base, width and curb_width are highly correlated. curb_width, engine_size and num_cylinders are highly correlated. city_mpg and highway_mpg have a correlation coefficient of 0.97!
+
+```{r}
+plot(autos_numeric)
+```
+
+Wheel_base, length, width, curb_weight seems to have a linear relation with price. City_mpg and highway_mpg seems to have an inverse relation with price.  
+
+```{r}
+hist(autos$highway_mpg)
+hist(autos$city_mpg)
+hist(autos$horsepower)
+hist(autos$engine_size)
+hist(autos$num_of_cylinders)
+hist(autos$curb_weight)
+hist(autos$width)
+hist(autos$length)
+```
+Highway_mpg, city_mpg, curb_weight ,length are normally distributed. Horsepower, engine_size, num_of_cylinders are skewed.     
+
+```{r}
+table(autos["fuel_type"])
+table(autos["aspiration"])
+table(autos["num_of_doors"])
+table(autos["body_style"])
+table(autos["drive_wheels"])
+table(autos["engine_location"])
+table(autos["make"])
+table(autos["engine_type"])
+```
+
+Fuel_type, aspiration, engine_location are biased.  
+
+
+```{r}
+#creating dummys
+autos["diesel_dummy"] <- ifelse(autos["fuel_type"]== "diesel",1,0)
+autos["std_dummy"] <- ifelse(autos["aspiration"]== "std",1,0)
+autos["fourdoors_dummy"] <- ifelse(autos["num_of_doors"]== "four",1,0)
+autos["convertible_dummy"] <- ifelse(autos["body_style"]== "convertible",1,0)
+autos["hardtop_dummy"] <- ifelse(autos["body_style"]== "hardtop",1,0)
+autos["hatchback_dummy"] <- ifelse(autos["body_style"]== "hatchback",1,0)
+autos["sedan_dummy"] <- ifelse(autos["body_style"]== "sedan",1,0)
+autos["wheels_4wd_dummy"] <- ifelse(autos["drive_wheels"]== "4wd",1,0)
+autos["wheels_fwd_dummy"] <- ifelse(autos["drive_wheels"]== "fwd",1,0)
+autos["front_dummy"] <- ifelse(autos["engine_location"]== "front",1,0)
+
+autos["alfa-romero_dummy"] <- ifelse(autos["make"]== "alfa-romero",1,0)
+autos["audi_dummy"] <- ifelse(autos["make"]== "audi",1,0)
+autos["bmw_dummy"] <- ifelse(autos["make"]== "bmw",1,0)
+autos["chevrolet_dummy"] <- ifelse(autos["make"]== "chevrolet",1,0)
+autos["dodge_dummy"] <- ifelse(autos["make"]== "dodge",1,0)
+autos["honda_dummy"] <- ifelse(autos["make"]== "honda",1,0)
+autos["audi_dummy"] <- ifelse(autos["make"]== "isuzu",1,0)
+autos["jaguar_dummy"] <- ifelse(autos["make"]== "jaguar",1,0)
+autos["chevrolet_dummy"] <- ifelse(autos["make"]== "chevrolet",1,0)
+autos["mazda_dummy"] <- ifelse(autos["make"]== "mazda",1,0)
+autos["mercedes-benz_dummy"] <- ifelse(autos["make"]== "mercedes-benz",1,0)
+autos["mercury_dummy"] <- ifelse(autos["make"]== "mercury",1,0)
+autos["mitsubishi_dummy"] <- ifelse(autos["make"]== "mitsubishi",1,0)
+autos["nissan_dummy"] <- ifelse(autos["make"]== "nissan",1,0)
+autos["peugot_dummy"] <- ifelse(autos["make"]== "peugot",1,0)
+autos["plymouth_dummy"] <- ifelse(autos["make"]== "plymouth",1,0)
+autos["porsche_dummy"] <- ifelse(autos["make"]== "porsche",1,0)
+autos["saab_dummy"] <- ifelse(autos["make"]== "saab",1,0)
+autos["subaru_dummy"] <- ifelse(autos["make"]== "subaru",1,0)
+autos["toyota_dummy"] <- ifelse(autos["make"]== "toyota",1,0)
+autos["volkswagen_dummy"] <- ifelse(autos["make"]== "volkswagen",1,0)
+
+autos["dohc_dummy"] <- ifelse(autos["engine_type"]== "dohc",1,0)
+autos["l_dummy"] <- ifelse(autos["engine_type"]== "l",1,0)
+autos["ohc_dummy"] <- ifelse(autos["engine_type"]== "ohc",1,0)
+autos["ohcf_dummy"] <- ifelse(autos["engine_type"]== "ohcf",1,0)
+
+autos["1bbl_dummy"] <- ifelse(autos["fuel_system"]== "1bbl",1,0)
+autos["2bbl_dummy"] <- ifelse(autos["fuel_system"]== "2bbl",1,0)
+autos["idi_dummy"] <- ifelse(autos["fuel_system"]== "idi",1,0)
+autos["mfi_dummy"] <- ifelse(autos["fuel_system"]== "mfi",1,0)
+autos["mpfi_dummy"] <- ifelse(autos["fuel_system"]== "mpfi",1,0)
+autos["spdi_dummy"] <- ifelse(autos["fuel_system"]== "spdi",1,0)
+
+```
+
+#### Linear regression model to predict price.
+
+```{r}
+autos_df <- autos[-c(1:7)]
+autos_df <-autos_df[-c(4,6,9:12,14:15)]
+model_2 <- lm(price ~ ., data = autos_df)
+summary(model_2)
+pred <- predict(model_2)
+```
+
+In the model, keeping only the variables that have high correlation with price. But excluding variables correlated among themselves to avoid multicollinearity, city_mpg as it is highly correlated with price as well as highway_mpg. At 5% significance level we observe 15 variables to be significant. At 1% significance ~19 variables are significant. The model has an R_squared value of 0.9533 i.e it explains 95.33% variation in price.     
+
+#### Could false discoveries be an issue?  
+Since there are 48 variables in the dataset, the problem of multiplicity arises. We might be observing more number of significant variables than actual. We access significance using hypothesis testing. Statistical significance is based on cut off value alpha. The problem is with the cut off value. As we are testing at 1% significance for ~50 variables, we are doing 50 hypothesis test. We are likely to accidentally find 5 variables significant. As we accidentally reject null hypothesis when the independent variables are large in number.    
+
+#### Uses the BH procedure to control the FDR with a q of 0.1. How many true discoveries do you estimate? Plot the cutoff line together with the significant and insignificant p-values.
+
+```{r}
+p_values <- coefficients(summary(model_2))[,4]
+hist(p_values)
+
+q <- 0.1
+N <- length(p_values)
+pvals <- as.data.frame(p_values)
+pvals['k'] <- rank(pvals['p_values'], ties.method="min")
+pvals['qk/N'] <- q*pvals['k']/N
+pvals['Check'] <- factor(pvals['p_values'] <= pvals['qk/N'])
+table(pvals['Check'])
+sig <- factor(p_values <= 0.1)
+o <- order(p_values)
+plot(p_values[o], log="xy", col=c("grey60","red")[sig[o]], pch=20,
+     ylab="p-values", xlab="tests ordered by p-value", main = paste('FDR =',q))
+lines(1:N, q*(1:N) / N)
+
+```
+
+With BH procedure we only observe 13 variables are significant at 1% significance, while we earlier observed 19 variables significant as same level of significance. For 6 variables, null hypothesis was rejected accidentally, and were false discoveries. We only estimate 13 true discoveries. Instead of using cutoff that is set (0.1) BH procedure push the cutoff to p* the new rejection criteria and deals with problem of multiplicity.  
+
+
+
