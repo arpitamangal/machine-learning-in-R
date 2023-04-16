@@ -13,7 +13,7 @@ library(ggcorrplot)
 library(caTools)
 ```
 
-#### Explore the dataset “autos.csv”.
+#### Explore the dataset
 
 ```{r}
 autos <- read.csv("autos.csv")
@@ -122,7 +122,7 @@ In the model, keeping only the variables that have high correlation with price. 
 #### Could false discoveries be an issue?  
 Since there are 48 variables in the dataset, the problem of multiplicity arises. We might be observing more number of significant variables than actual. We access significance using hypothesis testing. Statistical significance is based on cut off value alpha. The problem is with the cut off value. As we are testing at 1% significance for ~50 variables, we are doing 50 hypothesis test. We are likely to accidentally find 5 variables significant. As we accidentally reject null hypothesis when the independent variables are large in number.    
 
-#### Uses the BH procedure to control the FDR with a q of 0.1. How many true discoveries do you estimate? Plot the cutoff line together with the significant and insignificant p-values.
+#### BH procedure to control the FDR with a q of 0.1.
 
 ```{r}
 p_values <- coefficients(summary(model_2))[,4]
