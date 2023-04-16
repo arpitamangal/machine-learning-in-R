@@ -1,0 +1,76 @@
+---
+title: "False Discovery"
+author: "Arpita Mangal"
+---
+
+#### Loading Packages
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(ggcorrplot)
+library(caTools)
+```
+
+### Data Creation
+
+#### code that produces a 10,000 x 1001 matrix (rows x cols) of random numbers drawn from N(0,1).
+```{r}
+rows <- 10000
+cols <- 1001
+Norm_Mean <- 0 ## Mean for the Normal Distribution
+Norm_Std_Dev <- 1 ## Std Dev for the Normal Distribution
+
+## Seed code
+set.seed(2112)
+### Simulate random sampling in Normal Distribution
+simulate_norm <- rnorm(cols*rows, Norm_Mean, Norm_Std_Dev)
+m <- matrix(simulate_norm, rows)
+df <- as.data.frame(m)
+```
+
+### Regression
+
+#### Treat the first column as “y” and the remaining 1000 columns as x’s.
+#### Regress y on x’s. Intercept is not need.
+
+```{r}
+##Treating V1 as y and rest as X and running the regression
+model_1 <- lm(V1~.-1,data = df)
+```
+
+#### Histogram of the p-values from the regression
+```{r}
+p_values <- coefficients(summary(model_1))[,4]
+hist(p_values)
+```
+
+The distribution looks like a uniform distribution. We do not observe deviation from uniform distribution.   
+
+### False Discovery
+
+#### How many “significant” variables do you expect to find knowing how the data was generated? How many “significant” variables does the regression yield if alpha = 0.01?  What does this tell us?    
+```{r}
+
+alpha <- 0.01
+#Number of significant values at given alpha
+sum(p_values < alpha)
+```
+
+We do not expect to see any significant variable as the data was randomly generated and the Y values are not dependent on X values. The regression yields 10 significant variables. This tells us that when we are performing multiple tests, and deciding the significance basis of alpha, the null tests erroneously pop up as significant. Since there are 1001 variables, we are performing t-test 1001 times, we are falsely getting 10 significant variables.   
+
+## BH procedure
+
+#### Given the p values found, use the BH procedure to control the FDR with a q of 0.1. How many “true” discoveries do you estimate?  
+
+BH procedure controls for false discoveries. Since the data is randomly generated we do not expect to any true discoveries.    
+```{r}
+q <- 0.1
+N <- length(p_values)
+pvals <- as.data.frame(p_values)
+pvals['k'] <- rank(pvals['p_values'], ties.method="min")
+pvals['qk/N'] <- q*pvals['k']/N
+pvals['Check'] <- factor(pvals['p_values'] <= pvals['qk/N'])
+table(pvals['Check'])
+```
+From the BH procedure, we do not observe any true discoveries. Hence, the significant variables we observed earlier basis the null test were false discoveries.    
