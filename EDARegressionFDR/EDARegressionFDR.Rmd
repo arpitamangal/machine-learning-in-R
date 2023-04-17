@@ -120,6 +120,9 @@ pred <- predict(model_2)
 In the model, keeping only the variables that have high correlation with price. But excluding variables correlated among themselves to avoid multicollinearity, city_mpg as it is highly correlated with price as well as highway_mpg. At 5% significance level we observe 15 variables to be significant. At 1% significance ~19 variables are significant. The model has an R_squared value of 0.9533 i.e it explains 95.33% variation in price.     
 
 #### Could false discoveries be an issue?  
+
+When we reject the null hypothesis, there is always the risk of a false positive. This data set (and most likely the chosen model) has many features / independent variables. The large number of features means a greater chance of false discoveries.
+
 Since there are 48 variables in the dataset, the problem of multiplicity arises. We might be observing more number of significant variables than actual. We access significance using hypothesis testing. Statistical significance is based on cut off value alpha. The problem is with the cut off value. As we are testing at 1% significance for ~50 variables, we are doing 50 hypothesis test. We are likely to accidentally find 5 variables significant. As we accidentally reject null hypothesis when the independent variables are large in number.    
 
 #### BH procedure to control the FDR with a q of 0.1.

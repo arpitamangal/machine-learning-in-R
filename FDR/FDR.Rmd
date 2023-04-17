@@ -32,7 +32,7 @@ df <- as.data.frame(m)
 ### Regression
 
 #### Treat the first column as “y” and the remaining 1000 columns as x’s.
-#### Regress y on x’s. Intercept is not need.
+#### Regress y on x’s. Intercept is not need. Since we are using random numbers drawn from a normal distribution with mean=0, the intercept is not relevant.
 
 ```{r}
 ##Treating V1 as y and rest as X and running the regression
