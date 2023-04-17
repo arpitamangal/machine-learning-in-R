@@ -1,0 +1,161 @@
+---
+title: "Compare Models"
+author: "Arpita Mangal"
+
+---
+```{r}
+### Loading Packages
+library(caTools)
+library(caret)
+```
+
+### Compare 3 methods to Predict Heart Attack
+
+#### Data pre-processing (dealing with missing value, nulls, empty columns)
+
+```{r}
+## import csv file
+df_heart <- read.csv("heart.csv")
+
+##Check the dimension of data frame (rows,column)
+dim(df_heart)
+
+
+##check the summary, number of missing values in dataframe
+summary(df_heart)
+df <- df_heart[-c(7,11,15)]
+boxplot(df[c(1:8)])
+boxplot(df[c(9:17)])
+```
+
+The column family_record and past_record are empty so we exclude them in our subset. The column wrist_dim only has 2 data points, hence we exclude them as well. Height, fat_free_wt, chest_dim, nip_dim, thigh_dim and biceps_dim have 1-4 missing values. For the columns with very less missing values (<0.1%) we can impute the missing values using median. Since the columns do have a few outliers, filling in using mean is not the best approach. 
+
+
+```{r}
+##subset of dataset
+df$chest_dim[is.na(df$chest_dim)]<-median(df$chest_dim,na.rm=TRUE)
+df$hip_dim[is.na(df$hip_dim)]<-median(df$hip_dim,na.rm=TRUE)
+df$hip_dim[is.na(df$hip_dim)]<-median(df$hip_dim,na.rm=TRUE)
+df$thigh_dim[is.na(df$thigh_dim)]<-median(df$thigh_dim,na.rm=TRUE)
+df$biceps_dim[is.na(df$biceps_dim)]<-median(df$biceps_dim,na.rm=TRUE)
+df$height[is.na(df$height)]<-median(df$height,na.rm=TRUE)
+df$fat_free_wt[is.na(df$fat_free_wt)]<-median(df$fat_free_wt,na.rm=TRUE)
+
+
+```
+
+
+#### Spliting the dataset into test and training sets using 80% observations as training set. 
+
+```{r}
+set.seed(094885)
+
+sample <- createDataPartition(df$heart_attack, p=0.8, list = F)
+train  <- df[sample,]
+test   <- df[-sample,]
+
+hist(train$heart_attack)
+hist(test$heart_attack)
+```
+
+
+### Simple linear regression model to predict the heart attack probability
+
+```{r}
+##Training a linear regression model to predit heart_attack
+model <- lm(heart_attack ~., data = train)
+summary(model)
+```
+
+We observe that the p-value for f-test of model is < 2.2e-16, which is less than any significant alpha. Hence the overall model is valid. The p-value of individual t-test for chest_dim, abdom_dim, thigh_dim and knee_dim is very ~10^-4 which is less than any significant alpha and hence these variables are highly significant for predicting heart_attack. The p-value for neck_dim is 0.057 so it is significant at 0.1 alpha. The p-value of individual test for coefficient of Biceps_dim if 0.117279, which is not significant and hence does not help in explaining any additional variation in heart_attack.  
+
+#### Out of Sample R_square (OOS R^2) for the model.
+
+```{r}
+pred_test <- predict(model, newdata = test)
+mean_test <- mean(test$heart_attack)
+sum_sq_explained <- sum((pred_test-mean_test)^2)
+sum_sq_total <- sum((test$heart_attack-mean_test)^2)
+sum_sq_residual   <- sum((test$heart_attack - pred_test)^2)
+
+r_square <- 1 - sum_sq_residual/sum_sq_total
+r_square
+
+```
+
+
+
+### 8-fold cross-validation to estimate the R^2 of the full model.
+
+```{r}
+
+set.seed(40)
+model <- train(heart_attack ~., data = train, method = "lm", trControl = trainControl(method = "cv", number = 8))
+
+# print the mean R^2 from the cross-validation
+mean(model$resample[,"Rsquared"])
+summary(model)
+```
+
+
+#### Out of Sample R_square (OOS R^2) for the model.
+
+```{r}
+
+pred_test_2 <- predict(model, newdata = test)
+
+mean_test_2 <- mean(test$heart_attack)
+sum_sq_explained_2 <- sum((pred_test_2-mean_test_2)^2)
+sum_sq_total_2 <- sum((test$heart_attack-mean_test_2)^2)
+sum_sq_residual_2 <- sum((test$heart_attack - pred_test_2)^2)
+
+r_square_2 <- 1 - sum_sq_residual_2/sum_sq_total_2
+r_square_2
+```
+
+The r-square value for test data set is 0.9384, the out of sample r-square is 0.8842519. It is comparable to the value without k-fold cross validation. 
+
+
+### Lasso regression to predict the heart attack probability. 
+
+#### obtain lambda_min as well as lambda_1se
+
+
+```{r}
+
+x_train<-as.matrix(train[,-c(17)])
+y_train <- as.matrix(train[17])
+
+x_test<-as.matrix(test[,-c(17)])
+y_test <- as.matrix(test[17])
+
+set.seed(40)
+cv_nhlreg <- glmnet::cv.glmnet(x=x_train, y=y_train,alpha=1, nfolds=8)
+plot(cv_nhlreg)
+lambda_min <- cv_nhlreg$lambda.min
+lambda_min
+lambda_1se<-cv_nhlreg$lambda.1se
+lambda_1se
+```
+
+We would choose lambda with one standard deviation away from the lambda_min. For every point in lambda sequence we fit data on (k-1)/k of the data and estimate on 1/10 left out and see the error. Issue with setup is k-fold CV is still contaminated and is not purely out of sample fit. In each iteration we take the bucket in and other out. So in reality all of the data is being used and not exactly out of sample. Hence we do correction using 1 standard deviation.  
+
+#### Train Model
+
+```{r}
+model_1se <- glmnet::glmnet(x_test, y_test, alpha = 1, lambda = lambda_1se)
+
+
+pred_test_3 <- predict(model_1se, s = lambda_1se, newx = x_test)
+mean_test_3 <- mean(test$heart_attack)
+sum_sq_explained_3 <- sum((pred_test_3-mean_test_3)^2)
+sum_sq_total_3 <- sum((test$heart_attack-mean_test_3)^2)
+sum_sq_residual_3 <- sum((test$heart_attack - pred_test_3)^2)
+
+r_square_3 <- 1 - sum_sq_residual_3/sum_sq_total_3
+r_square_3
+```
+
+#### Comparing 3 models 
+
+The out of sample r-square value of model trained without k-fold cross validation and with cross validation is approximately same. The significance of variable is also same for both the models.The r-square value of model with lasso decreased to  0.857938. With lasso only past_pain, density, neck_dim, chest_dim, thigh_dim and biceps_dim are significant.  
