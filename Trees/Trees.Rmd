@@ -1,0 +1,106 @@
+---
+title: "Trees"
+author: "Arpita Mangal"
+---
+
+## Loading Packages
+
+```{r}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+```
+
+### Data processing 
+
+```{r}
+## import csv file
+df <- read.csv("Transaction.csv")
+
+##Check the dimension of data frame (rows,column)
+dim(df)
+
+
+##check the summary, number of missing values in dataframe
+summary(df)
+
+boxplot(df["LIMIT_BAL"])
+boxplot(df["AGE"])
+boxplot(df[c(13:24)])
+```
+
+We observe, the data is not missing for any of the variables. There are outliers in Limit_bal, age as well as bill_amt and pay_amt. However random forest is robust to outliers we are not treating them here.  
+
+```{r}
+##Splitting the data into test and train
+set.seed(2112)
+df$payment_default = as.factor(df$payment_default)
+prop.table(table(df$payment_default))
+
+sample <- createDataPartition(df$payment_default, p=0.8, list = F)
+df_train  <- df[sample,]
+df_test   <- df[-sample,]
+
+##Checking if the split is balanced
+prop.table(table(df_train$payment_default))
+prop.table(table(df_test$payment_default))
+```
+
+
+### Classification Tree (CART)
+
+```{r}
+##classification tree
+class_model <- rpart(payment_default~., cp=0.01,data = df_train, method = 'class')
+rpart.plot(class_model, extra = 106)
+```
+
+At the top, it is the overall probability of payment default. In the entire dataset 22% percent of customers default.
+The variable Pay_0 is used for the first split, meaning it is explains most variation in the  y values.  This node asks whether the pay_0 is less than 2. If yes, then we go down to the root’s left child node. 89% percent are less than 2 with 17% probability of payment default. If no, then we go down to the root’s right child node. 11% percent are greater than 2 with 69% probability of not defaulting.      
+
+```{r}
+
+## Evaluating  out of sample performance
+predict_unseen <-predict(class_model, df_test, type = 'class')
+table_mat <- table(df_test$payment_default, predict_unseen)
+table_mat
+confusionMatrix(table_mat)
+```
+
+We observe that the out of sample accuracy is 82% but since our original data was imbalanced, accuracy would not be a very good measure. We observe a Sensitivity of  0.8342 and Specificity of 0.7176. 
+
+```{r}
+##classification tree with more number of splits
+class_model <- rpart(payment_default~., cp=0.001,data = df_train, method = 'class')
+rpart.plot(class_model, extra = 106)
+```
+
+At the top, it is the overall probability of payment default. In the entire dataset 22% percent of customers default.
+The variable Pay_0 is used for the first split, meaning it is explains most variation in the  y values.  This node asks whether the pay_0 is less than 2. If yes, then we go down to the root’s left child node. 89% percent are less than 2 with 17% probability of payment default. If no, then we go down to the root’s right child node. 11% percent are greater than 2 with 69% probability of not defaulting. The  second split for the left child happens with the feature Pay_2 less than 2. If Yes, then we go down to the leftmost final node. 82% percent are less than 2 with 14% probability of payment default. If No, then we go down to the right node. Which is agaian split several times before reaching to the  final nodes.        
+
+```{r}
+## Evaluating  out of sample performance
+predict_unseen <-predict(class_model, df_test, type = 'class')
+table_mat <- table(df_test$payment_default, predict_unseen)
+table_mat
+confusionMatrix(table_mat)
+```
+
+We observe that the out of smaple accuracy is 82% but since our original data was imbalanced, accuracy would not be a very good measure. We observe a Sensitivity of 0.8370 and Specificity of 0.7123.  
+
+### Random Forest
+
+```{r}
+##random forest
+rf_model <- randomForest(payment_default ~ ., data = df_train, ntree = 500)
+summary(rf_model)
+
+## Evaluating  out of sample performance
+predict_unseen <- predict(rf_model, newdata = df_test)
+table_mat <- table(df_test$payment_default, predict_unseen)
+table_mat
+confusionMatrix(table_mat)
+```
+
+We observe that the out of sample accuracy is 82% but since our original data was imbalanced, accuracy would not be a very good measure. We observe a Sensitivity of 0.8417 and Specificity of 0.6744.  
